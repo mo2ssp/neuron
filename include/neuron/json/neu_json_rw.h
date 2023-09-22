@@ -37,6 +37,7 @@ typedef struct {
     char *   group;
     char *   node;
     uint64_t timestamp;
+    char* UUID;
 } neu_json_read_periodic_t;
 
 typedef struct {

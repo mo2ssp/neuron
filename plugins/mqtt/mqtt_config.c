@@ -218,12 +218,20 @@ int mqtt_config_parse(neu_plugin_t *plugin, const char *setting,
     char *      err_param   = NULL;
     const char *placeholder = "********";
 
-    neu_json_elem_t client_id = { .name = "client-id", .t = NEU_JSON_STR };
-    neu_json_elem_t qos       = {
+    neu_json_elem_t client_id  = { .name = "client-id", .t = NEU_JSON_STR };
+    neu_json_elem_t UUID       = { .name = "uuid", .t = NEU_JSON_STR };
+    neu_json_elem_t spec_topic = { .name = "spec-topic", .t = NEU_JSON_STR };
+    neu_json_elem_t qos        = {
         .name      = "qos",
         .t         = NEU_JSON_INT,
         .v.val_int = NEU_MQTT_QOS0,               // default to QoS0
         .attribute = NEU_JSON_ATTRIBUTE_OPTIONAL, // for backward compatibility
+    };
+    neu_json_elem_t retain = {
+        .name       = "retain",
+        .t          = NEU_JSON_BOOL,
+        .v.val_bool = false,                       // default to false
+        .attribute  = NEU_JSON_ATTRIBUTE_OPTIONAL, // for backward compatibility
     };
     neu_json_elem_t format          = { .name = "format", .t = NEU_JSON_INT };
     neu_json_elem_t write_req_topic = {
@@ -261,8 +269,9 @@ int mqtt_config_parse(neu_plugin_t *plugin, const char *setting,
         return -1;
     }
 
-    ret = neu_parse_param(setting, &err_param, 7, &client_id, &qos, &format,
-                          &write_req_topic, &write_resp_topic, &host, &port);
+    ret = neu_parse_param(setting, &err_param, 10, &client_id, &UUID,
+                          &spec_topic, &qos, &retain, &format, &write_req_topic,
+                          &write_resp_topic, &host, &port);
     if (0 != ret) {
         plog_error(plugin, "parsing setting fail, key: `%s`", err_param);
         goto error;
@@ -341,7 +350,10 @@ int mqtt_config_parse(neu_plugin_t *plugin, const char *setting,
     }
 
     config->client_id           = client_id.v.val_str;
+    config->UUID                = UUID.v.val_str;
+    config->spec_topic          = spec_topic.v.val_str;
     config->qos                 = qos.v.val_int;
+    config->retain              = retain.v.val_bool;
     config->format              = format.v.val_int;
     config->write_req_topic     = write_req_topic.v.val_str;
     config->write_resp_topic    = write_resp_topic.v.val_str;

@@ -18,6 +18,7 @@
  **/
 #include <stdlib.h>
 
+#include "persist/persist.h"
 #include "plugin.h"
 #include "utils/log.h"
 #include "json/neu_json_fn.h"
@@ -82,8 +83,26 @@ void handle_write(nng_aio *aio)
             header.ctx  = aio;
             header.type = NEU_REQ_WRITE_TAG;
 
-            strcpy(cmd.driver, req->node);
-            strcpy(cmd.group, req->group);
+            if (strcmp(req->node, "") == 0) {
+                char *node_name  = NULL;
+                char *group_name = NULL;
+                neu_persister_load_node_name_and_group_name_by_tag_name(
+                    req->tag, &node_name, &group_name);
+
+                if (node_name != NULL && group_name != NULL) {
+                    strcpy(cmd.driver, node_name);
+                    strcpy(cmd.group, group_name);
+                    free(node_name);
+                    free(group_name);
+                } else {
+                    strcpy(cmd.driver, req->node);
+                    strcpy(cmd.group, req->group);
+                }
+            } else {
+                strcpy(cmd.driver, req->node);
+                strcpy(cmd.group, req->group);
+            }
+
             strcpy(cmd.tag, req->tag);
 
             switch (req->t) {
@@ -147,8 +166,26 @@ void handle_write_tags(nng_aio *aio)
             header.ctx  = aio;
             header.type = NEU_REQ_WRITE_TAGS;
 
-            strcpy(cmd.driver, req->node);
-            strcpy(cmd.group, req->group);
+            if (strcmp(req->node, "") == 0) {
+                char *node_name  = NULL;
+                char *group_name = NULL;
+                neu_persister_load_node_name_and_group_name_by_tag_name(
+                    req->tags[0].tag, &node_name, &group_name);
+
+                if (node_name != NULL && group_name != NULL) {
+                    strcpy(cmd.driver, node_name);
+                    strcpy(cmd.group, group_name);
+                    free(node_name);
+                    free(group_name);
+                } else {
+                    strcpy(cmd.driver, req->node);
+                    strcpy(cmd.group, req->group);
+                }
+            } else {
+                strcpy(cmd.driver, req->node);
+                strcpy(cmd.group, req->group);
+            }
+
             cmd.n_tag = req->n_tag;
             cmd.tags  = calloc(cmd.n_tag, sizeof(neu_resp_tag_value_t));
 

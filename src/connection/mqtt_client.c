@@ -1297,7 +1297,7 @@ int neu_mqtt_client_close(neu_mqtt_client_t *client)
     return 0;
 }
 
-int neu_mqtt_client_publish(neu_mqtt_client_t *client, neu_mqtt_qos_e qos,
+int neu_mqtt_client_publish(neu_mqtt_client_t *client, neu_mqtt_qos_e qos,bool retain,
                             char *topic, uint8_t *payload, uint32_t len,
                             void *data, neu_mqtt_client_publish_cb_t cb)
 {
@@ -1319,6 +1319,7 @@ int neu_mqtt_client_publish(neu_mqtt_client_t *client, neu_mqtt_qos_e qos,
     nng_mqtt_msg_set_packet_type(pub_msg, NNG_MQTT_PUBLISH);
     nng_mqtt_msg_set_publish_payload(pub_msg, (uint8_t *) payload, len);
     nng_mqtt_msg_set_publish_qos(pub_msg, qos);
+    nng_mqtt_msg_set_publish_retain(pub_msg, retain);
 
     nng_mtx_lock(client->mtx);
     task = client_alloc_task(client);

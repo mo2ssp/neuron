@@ -177,6 +177,12 @@ int neu_persister_store_tags(const char *driver_name, const char *group_name,
 int neu_persister_load_tags(const char *driver_name, const char *group_name,
                             UT_array **tag_infos);
 
+
+
+
+int neu_persister_load_node_name_and_group_name_by_tag_name(const char* tag_name, char** node_name, char** group_name);
+
+
 /**
  * Update node tags.
  * @param driver_name               name of the driver who owns the tags

@@ -152,7 +152,8 @@ static char *generate_upload_json(neu_plugin_t *            plugin,
     char *                     json_str = NULL;
     neu_json_read_periodic_t   header   = { .group     = (char *) data->group,
                                         .node      = (char *) data->driver,
-                                        .timestamp = global_timestamp };
+                                        .timestamp = global_timestamp,
+                                        .UUID      = plugin->config.UUID };
     neu_json_read_resp_t       json     = { 0 };
 
     if (0 != tag_values_to_json(tags, len, &json)) {
@@ -388,15 +389,15 @@ static void publish_cb(int errcode, neu_mqtt_qos_e qos, char *topic,
     free(payload);
 }
 
-static inline int publish(neu_plugin_t *plugin, neu_mqtt_qos_e qos, char *topic,
-                          char *payload, size_t payload_len)
+static inline int publish(neu_plugin_t *plugin, neu_mqtt_qos_e qos, bool retain,
+                          char *topic, char *payload, size_t payload_len)
 {
     neu_adapter_update_metric_cb_t update_metric =
         plugin->common.adapter_callbacks->update_metric;
 
-    int rv =
-        neu_mqtt_client_publish(plugin->client, qos, topic, (uint8_t *) payload,
-                                (uint32_t) payload_len, plugin, publish_cb);
+    int rv = neu_mqtt_client_publish(
+        plugin->client, qos, retain, topic, (uint8_t *) payload,
+        (uint32_t) payload_len, plugin, publish_cb);
     if (0 != rv) {
         plog_error(plugin, "pub [%s, QoS%d] fail", topic, qos);
         update_metric(plugin->common.adapter, NEU_METRIC_SEND_MSG_ERRORS_TOTAL,
@@ -487,7 +488,8 @@ int handle_write_response(neu_plugin_t *plugin, neu_json_mqtt_t *mqtt_json,
 
     char *         topic = plugin->config.write_resp_topic;
     neu_mqtt_qos_e qos   = plugin->config.qos;
-    rv       = publish(plugin, qos, topic, json_str, strlen(json_str));
+    rv       = publish(plugin, qos, plugin->config.retain, topic, json_str,
+                 strlen(json_str));
     json_str = NULL;
 
 end:
@@ -569,7 +571,8 @@ int handle_read_response(neu_plugin_t *plugin, neu_json_mqtt_t *mqtt_json,
 
     char *         topic = plugin->read_resp_topic;
     neu_mqtt_qos_e qos   = plugin->config.qos;
-    rv       = publish(plugin, qos, topic, json_str, strlen(json_str));
+    rv       = publish(plugin, qos, plugin->config.retain, topic, json_str,
+                 strlen(json_str));
     json_str = NULL;
 
 end:
@@ -608,9 +611,13 @@ int handle_trans_data(neu_plugin_t *            plugin,
         return NEU_ERR_EINTERNAL;
     }
 
-    char *         topic = route->topic;
-    neu_mqtt_qos_e qos   = plugin->config.qos;
-    rv       = publish(plugin, qos, topic, json_str, strlen(json_str));
+    char *topic = route->topic;
+    if (strlen(plugin->config.spec_topic) > 0) {
+        topic = plugin->config.spec_topic;
+    }
+    neu_mqtt_qos_e qos = plugin->config.qos;
+    rv       = publish(plugin, qos, plugin->config.retain, topic, json_str,
+                 strlen(json_str));
     json_str = NULL;
 
     return rv;

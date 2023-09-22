@@ -107,8 +107,9 @@ int neu_mqtt_client_close(neu_mqtt_client_t *client);
  * You may set `cb` to NULL if you do not care about the result.
  */
 int neu_mqtt_client_publish(neu_mqtt_client_t *client, neu_mqtt_qos_e qos,
-                            char *topic, uint8_t *payload, uint32_t len,
-                            void *data, neu_mqtt_client_publish_cb_t cb);
+                            bool retain, char *topic, uint8_t *payload,
+                            uint32_t len, void *data,
+                            neu_mqtt_client_publish_cb_t cb);
 
 /** Subscribe to `topic` with service quality `qos`.
  *

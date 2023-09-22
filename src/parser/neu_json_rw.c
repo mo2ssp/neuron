@@ -471,6 +471,11 @@ int neu_json_encode_read_periodic_resp(void *json_object, void *param)
                                          .name      = "timestamp",
                                          .t         = NEU_JSON_INT,
                                          .v.val_int = resp->timestamp,
+                                     },
+                                     {
+                                         .name      = "UUID",
+                                         .t         = NEU_JSON_STR,
+                                         .v.val_str = resp->UUID,
                                      } };
     ret = neu_json_encode_field(json_object, resp_elems,
                                 NEU_JSON_ELEM_SIZE(resp_elems));

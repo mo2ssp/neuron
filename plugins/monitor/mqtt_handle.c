@@ -237,14 +237,14 @@ static void publish_cb(int errcode, neu_mqtt_qos_e qos, char *topic,
     free(payload);
 }
 
-static inline int publish(neu_plugin_t *plugin, neu_mqtt_qos_e qos, char *topic,
-                          char *payload, size_t payload_len)
+static inline int publish(neu_plugin_t *plugin, neu_mqtt_qos_e qos, bool retain,
+                          char *topic, char *payload, size_t payload_len)
 {
     neu_adapter_update_metric_cb_t update_metric =
         plugin->common.adapter_callbacks->update_metric;
 
     int rv = neu_mqtt_client_publish(
-        plugin->mqtt_client, qos, topic, (uint8_t *) payload,
+        plugin->mqtt_client, qos, retain, topic, (uint8_t *) payload,
         (uint32_t) payload_len, plugin, publish_cb);
     if (0 != rv) {
         plog_error(plugin, "pub [%s, QoS%d] fail", topic, qos);
@@ -282,7 +282,7 @@ int handle_nodes_state(neu_plugin_t *plugin, neu_reqresp_nodes_state_t *states)
 
     char *         topic = plugin->config->heartbeat_topic;
     neu_mqtt_qos_e qos   = NEU_MQTT_QOS0;
-    rv       = publish(plugin, qos, topic, json_str, strlen(json_str));
+    rv       = publish(plugin, qos, false, topic, json_str, strlen(json_str));
     json_str = NULL;
 
 end:
@@ -317,7 +317,7 @@ int handle_events(neu_plugin_t *plugin, neu_reqresp_type_e event, void *data)
     }
 
     neu_mqtt_qos_e qos = NEU_MQTT_QOS0;
-    rv       = publish(plugin, qos, topic, json_str, strlen(json_str));
+    rv       = publish(plugin, qos, false, topic, json_str, strlen(json_str));
     json_str = NULL;
 
 end:

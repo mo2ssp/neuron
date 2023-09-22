@@ -1013,6 +1013,44 @@ error:
     return NEU_ERR_EINTERNAL;
 }
 
+int neu_persister_load_node_name_and_group_name_by_tag_name(
+    const char *tag_name, char **node_name, char **group_name)
+{
+    sqlite3_stmt *stmt  = NULL;
+    const char *  query = "SELECT driver_name, group_name "
+                        "FROM tags WHERE name=? "
+                        "ORDER BY rowid ASC";
+
+    if (SQLITE_OK != sqlite3_prepare_v2(global_db, query, -1, &stmt, NULL)) {
+        nlog_error("prepare `%s` fail: %s", query, sqlite3_errmsg(global_db));
+        goto error;
+    }
+
+    if (SQLITE_OK != sqlite3_bind_text(stmt, 1, tag_name, -1, NULL)) {
+        nlog_error("bind `%s` with `%s` fail: %s", query, tag_name,
+                   sqlite3_errmsg(global_db));
+        goto error;
+    }
+
+    int step = sqlite3_step(stmt);
+    while (SQLITE_ROW == step) {
+        *node_name  = strdup((char *) sqlite3_column_text(stmt, 0));
+        *group_name = strdup((char *) sqlite3_column_text(stmt, 1));
+        step        = sqlite3_step(stmt);
+    }
+
+    if (SQLITE_DONE != step) {
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+    return 0;
+
+error:
+
+    return NEU_ERR_EINTERNAL;
+}
+
 int neu_persister_update_tag(const char *driver_name, const char *group_name,
                              const neu_datatag_t *tag)
 {
