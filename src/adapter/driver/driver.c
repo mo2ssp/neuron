@@ -104,6 +104,8 @@ static void write_response(neu_adapter_t *adapter, void *r, neu_error error)
 
     req->type = NEU_RESP_ERROR;
 
+    nlog_notice("write tag response <%p>", req->ctx);
+
     adapter->cb_funs.response(adapter, req, &nerror);
     free(req);
 }
@@ -311,12 +313,20 @@ void neu_adapter_driver_start_group_timer(neu_adapter_driver_t *driver)
             .type        = NEU_EVENT_TIMER_NOBLOCK,
         };
 
-        param.cb   = report_callback;
-        el->report = neu_adapter_add_timer((neu_adapter_t *) driver, param);
-
         param.type = driver->adapter.module->timer_type;
         param.cb   = read_callback;
         el->read   = neu_event_add_timer(driver->driver_events, param);
+
+        struct timespec t1 = {
+            .tv_sec  = 0,
+            .tv_nsec = 1000 * 1000 * 20,
+        };
+        struct timespec t2 = { 0 };
+        nanosleep(&t1, &t2);
+
+        param.type = NEU_EVENT_TIMER_NOBLOCK;
+        param.cb   = report_callback;
+        el->report = neu_adapter_add_timer((neu_adapter_t *) driver, param);
     }
 }
 
@@ -700,14 +710,23 @@ int neu_adapter_driver_add_group(neu_adapter_driver_t *driver, const char *name,
         neu_group_split_static_tags(find->group, &find->static_tags,
                                     &find->grp.tags);
 
+        param.type = driver->adapter.module->timer_type;
+        param.cb   = read_callback;
+        find->read = neu_event_add_timer(driver->driver_events, param);
+
+        struct timespec t1 = {
+            .tv_sec  = 0,
+            .tv_nsec = 1000 * 1000 * 20,
+        };
+        struct timespec t2 = { 0 };
+        nanosleep(&t1, &t2);
+
+        param.type   = NEU_EVENT_TIMER_NOBLOCK;
         param.cb     = report_callback;
         find->report = neu_adapter_add_timer((neu_adapter_t *) driver, param);
-        param.type   = driver->adapter.module->timer_type;
-        param.cb     = read_callback;
-        find->read   = neu_event_add_timer(driver->driver_events, param);
 
         param.second      = 0;
-        param.millisecond = 100;
+        param.millisecond = 3;
         param.cb          = write_callback;
         find->write       = neu_event_add_timer(driver->driver_events, param);
 
@@ -796,11 +815,21 @@ int neu_adapter_driver_update_group(neu_adapter_driver_t *driver,
     neu_group_set_interval(find->group, interval);
 
     // restore the timers
+
+    param.type = driver->adapter.module->timer_type;
+    param.cb   = read_callback;
+    find->read = neu_event_add_timer(driver->driver_events, param);
+
+    struct timespec t1 = {
+        .tv_sec  = 0,
+        .tv_nsec = 1000 * 1000 * 20,
+    };
+    struct timespec t2 = { 0 };
+    nanosleep(&t1, &t2);
+
+    param.type   = NEU_EVENT_TIMER_NOBLOCK;
     param.cb     = report_callback;
     find->report = neu_adapter_add_timer((neu_adapter_t *) driver, param);
-    param.type   = driver->adapter.module->timer_type;
-    param.cb     = read_callback;
-    find->read   = neu_event_add_timer(driver->driver_events, param);
 
     return ret;
 }
@@ -856,9 +885,9 @@ int neu_adapter_driver_del_group(neu_adapter_driver_t *driver, const char *name)
         utarray_free(find->grp.tags);
         utarray_free(find->wt_tags);
         neu_group_destroy(find->group);
+        pthread_mutex_destroy(&find->wt_mtx);
         free(find);
 
-        pthread_mutex_destroy(&find->wt_mtx);
         neu_adapter_del_group_metrics(&driver->adapter, name);
         ret = NEU_ERR_SUCCESS;
     }
@@ -989,6 +1018,8 @@ int neu_adapter_driver_add_tag(neu_adapter_driver_t *driver, const char *group,
     group_t *find = NULL;
 
     neu_datatag_parse_addr_option(tag, &tag->option);
+    driver->adapter.module->intf_funs->driver.validate_tag(
+        driver->adapter.plugin, tag);
 
     HASH_FIND_STR(driver->groups, group, find);
     if (find == NULL) {
@@ -1323,7 +1354,7 @@ static int read_callback(void *usr_data)
                               group_change);
     }
 
-    if (group->grp.tags != NULL) {
+    if (group->grp.tags != NULL && utarray_len(group->grp.tags) > 0) {
         int64_t spend = global_timestamp;
 
         group->driver->adapter.module->intf_funs->driver.group_timer(

@@ -106,25 +106,24 @@ static void *event_loop(void *arg)
             if ((event.events & EPOLLIN) == EPOLLIN) {
                 uint64_t t;
 
+                nng_mtx_lock(data->ctx.timer->mtx);
                 ssize_t size = read(data->fd, &t, sizeof(t));
                 (void) size;
 
                 if (!data->ctx.timer->stop) {
                     if (data->ctx.timer->type == NEU_EVENT_TIMER_BLOCK) {
-                        nng_mtx_lock(data->ctx.timer->mtx);
                         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, data->fd, NULL);
                         ret = data->callback.timer(data->usr_data);
                         timerfd_settime(data->fd, 0, &data->ctx.timer->value,
                                         NULL);
                         epoll_ctl(epoll_fd, EPOLL_CTL_ADD, data->fd, &event);
-                        nng_mtx_unlock(data->ctx.timer->mtx);
                     } else {
-                        nng_mtx_lock(data->ctx.timer->mtx);
                         ret = data->callback.timer(data->usr_data);
-                        nng_mtx_unlock(data->ctx.timer->mtx);
                     }
                 }
+                nng_mtx_unlock(data->ctx.timer->mtx);
             }
+
             break;
         case IO:
             if ((event.events & EPOLLHUP) == EPOLLHUP) {
@@ -221,6 +220,7 @@ int neu_event_del_timer(neu_events_t *events, neu_event_timer_t *timer)
                 events->epoll_fd);
 
     timer->stop = true;
+
     nng_mtx_lock(timer->mtx);
     close(timer->fd);
     epoll_ctl(events->epoll_fd, EPOLL_CTL_DEL, timer->fd, NULL);
@@ -229,6 +229,7 @@ int neu_event_del_timer(neu_events_t *events, neu_event_timer_t *timer)
 
     nng_mtx_free(timer->mtx);
     free(timer);
+
     return 0;
 }
 
@@ -260,6 +261,10 @@ neu_event_io_t *neu_event_add_io(neu_events_t *events, neu_event_io_param_t io)
 
 int neu_event_del_io(neu_events_t *events, neu_event_io_t *io)
 {
+    if (io == NULL) {
+        return 0;
+    }
+
     struct event_data *data = (struct event_data *) io->event_data;
     zlog_notice(neuron, "del io: %d from epoll: %d", io->fd, events->epoll_fd);
 
