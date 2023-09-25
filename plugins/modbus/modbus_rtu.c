@@ -162,6 +162,7 @@ static int driver_config(neu_plugin_t *plugin, const char *config)
     neu_json_elem_t parity = { .name = "parity", .t = NEU_JSON_INT };
     neu_json_elem_t baud   = { .name = "baud", .t = NEU_JSON_INT };
     neu_json_elem_t data   = { .name = "data", .t = NEU_JSON_INT };
+    neu_json_elem_t crc    = { .name = "crc", .t = NEU_JSON_BOOL };
 
     neu_json_elem_t max_retries = { .name = "max_retries", .t = NEU_JSON_INT };
     neu_json_elem_t retry_interval = { .name = "retry_interval",
@@ -185,11 +186,11 @@ static int driver_config(neu_plugin_t *plugin, const char *config)
 
     plugin->interval = interval.v.val_int;
     if (link.v.val_int == 0) {
-        ret = neu_parse_param((char *) config, &err_param, 5, &device, &stop,
-                              &parity, &baud, &data);
+        ret = neu_parse_param((char *) config, &err_param, 6, &device, &stop,
+                              &parity, &baud, &data, &crc);
     } else {
-        ret = neu_parse_param((char *) config, &err_param, 3, &mode, &host,
-                              &port);
+        ret = neu_parse_param((char *) config, &err_param, 4, &mode, &host,
+                              &port, &crc);
     }
 
     if (ret != 0) {
@@ -197,6 +198,8 @@ static int driver_config(neu_plugin_t *plugin, const char *config)
         free(err_param);
         return -1;
     }
+
+    plugin->crc = crc.v.val_bool;
 
     ret = neu_parse_param((char *) config, &err_param, 2, &port, &max_retries,
                           &retry_interval);

@@ -68,6 +68,7 @@ int modbus_stack_recv(modbus_stack_t *stack, uint8_t slave_id,
     struct modbus_header header = { 0 };
     struct modbus_code   code   = { 0 };
     int                  ret    = 0;
+    neu_plugin_t *       plugin = (neu_plugin_t *) stack->ctx;
 
     if (stack->protocol == MODBUS_PROTOCOL_TCP) {
         ret = modbus_header_unwrap(buf, &header);
@@ -150,7 +151,7 @@ int modbus_stack_recv(modbus_stack_t *stack, uint8_t slave_id,
         return -1;
     }
 
-    if (stack->protocol == MODBUS_PROTOCOL_RTU) {
+    if (plugin->crc && stack->protocol == MODBUS_PROTOCOL_RTU) {
         struct modbus_crc crc = { 0 };
         ret                   = modbus_crc_unwrap(buf, &crc);
         if (ret <= 0) {
@@ -170,10 +171,11 @@ int modbus_stack_read(modbus_stack_t *stack, uint8_t slave_id,
     int                                     ret     = 0;
     *response_size                                  = 0;
     modbus_action_e m_action                        = MODBUS_ACTION_DEFAULT;
+    neu_plugin_t *  plugin = (neu_plugin_t *) stack->ctx;
 
     neu_protocol_pack_buf_init(&pbuf, buf, sizeof(buf));
 
-    if (stack->protocol == MODBUS_PROTOCOL_RTU) {
+    if (plugin->crc && stack->protocol == MODBUS_PROTOCOL_RTU) {
         modbus_crc_wrap(&pbuf);
     }
     modbus_address_wrap(&pbuf, start_address, n_reg, m_action);
@@ -206,8 +208,10 @@ int modbus_stack_read(modbus_stack_t *stack, uint8_t slave_id,
         *response_size += sizeof(struct modbus_header);
         break;
     case MODBUS_PROTOCOL_RTU:
-        modbus_crc_set(&pbuf);
-        *response_size += 2;
+        if (plugin->crc) {
+            modbus_crc_set(&pbuf);
+            *response_size += 2;
+        }
         break;
     }
 
@@ -229,11 +233,12 @@ int modbus_stack_write(modbus_stack_t *stack, void *req, uint8_t slave_id,
 {
     static __thread neu_protocol_pack_buf_t pbuf     = { 0 };
     modbus_action_e                         m_action = MODBUS_ACTION_DEFAULT;
+    neu_plugin_t *plugin = (neu_plugin_t *) stack->ctx;
 
     memset(stack->buf, 0, stack->buf_size);
     neu_protocol_pack_buf_init(&pbuf, stack->buf, stack->buf_size);
 
-    if (stack->protocol == MODBUS_PROTOCOL_RTU) {
+    if (plugin->crc && stack->protocol == MODBUS_PROTOCOL_RTU) {
         modbus_crc_wrap(&pbuf);
     }
 
@@ -275,8 +280,10 @@ int modbus_stack_write(modbus_stack_t *stack, void *req, uint8_t slave_id,
         *response_size += sizeof(struct modbus_header);
         break;
     case MODBUS_PROTOCOL_RTU:
-        modbus_crc_set(&pbuf);
-        *response_size += 2;
+        if (plugin->crc) {
+            modbus_crc_set(&pbuf);
+            *response_size += 2;
+        }
         break;
     }
 

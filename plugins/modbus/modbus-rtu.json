@@ -351,5 +351,15 @@
 			"field": "link",
 			"value": 1
 		}
+	},
+	"crc": {
+		"name": "crc",
+		"name_zh": "crc",
+		"description": "crc",
+		"description_zh": "retain msg",
+		"attribute": "optional",
+		"type": "bool",
+		"default": false,
+		"valid": {}
 	}
 }
